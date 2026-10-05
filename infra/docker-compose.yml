@@ -1,0 +1,70 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: marketsim-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-marketsim}
+      POSTGRES_USER: ${POSTGRES_USER:-marketsim}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-marketsim}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - marketsim_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-marketsim} -d ${POSTGRES_DB:-marketsim}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ai:
+    build:
+      context: ../backend/ai
+    container_name: marketsim-ai
+    ports:
+      - "${AI_PORT:-8000}:8000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-marketsim}:${POSTGRES_PASSWORD:-marketsim}@postgres:5432/${POSTGRES_DB:-marketsim}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - full
+
+  api:
+    build:
+      context: ../backend/api
+    container_name: marketsim-api
+    ports:
+      - "${API_PORT:-8080}:8080"
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/marketsim}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-marketsim}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-marketsim}
+      JWT_SECRET: ${JWT_SECRET:-change-me-to-a-long-random-string}
+      AI_BASE_URL: ${AI_BASE_URL:-http://ai:8000}
+      SEPOLIA_RPC_URL: ${SEPOLIA_RPC_URL:-}
+      SEPOLIA_PRIVATE_KEY: ${SEPOLIA_PRIVATE_KEY:-}
+      AUDIT_REGISTRY_ADDRESS: ${AUDIT_REGISTRY_ADDRESS:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - full
+
+  web:
+    build:
+      context: ../frontend
+    container_name: marketsim-web
+    ports:
+      - "${WEB_PORT:-5173}:80"
+    depends_on:
+      - api
+    profiles:
+      - full
+
+volumes:
+  marketsim_pg:
+
+# Usage:
+#   docker compose -f infra/docker-compose.yml up postgres
+#   docker compose -f infra/docker-compose.yml --profile full up --build

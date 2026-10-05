@@ -1,0 +1,19 @@
+# MarketSim AI
+node_modules/
+dist/
+build/
+target/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.env
+infra/.env
+.idea/
+.vscode/
+*.iml
+coverage/
+.DS_Store
+cache/
+artifacts/
+typechain-types/
